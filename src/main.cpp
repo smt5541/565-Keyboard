@@ -31,6 +31,7 @@ DigitalOut kb_cols[KB_COLS] = {col_5, col_6, col_7, col_8, col_9, col_10, col_11
 string kb_col_ids[KB_COLS] = {"5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"};
 
 bool kb_pressed[KB_ROWS][KB_COLS];
+static bool ser_key_read = false;
 static EventQueue event_queue(/* event count */ 10 * EVENTS_EVENT_SIZE);
 BufferedSerial pc(USBTX, USBRX);
 DigitalOut led_blue(LED1);
@@ -52,17 +53,23 @@ void lcd_init() {
 
 void ser_key_process(char *buf) {
     string s;
-    pc.read(buf, 1);
-    s = to_string((int)buf[0]);
-    s.append("\r\n");
-    pc.write(s.c_str(), s.length());
+    if (pc.read(buf, 1) != -EAGAIN) {
+        s = to_string((int)buf[0]);
+        s.append("\r\n");
+        ser_print(s);
+        ser_key_read = true;
+    } else {
+        ser_key_read = false;
+    }
 }
 
 void lcd_display(char *buf) {
-    if (buf[0] != '\r') {
-        lcd.putc(buf[0]);
-    } else {
-        lcd.cls();
+    if (ser_key_read) {
+        if (buf[0] != '\r') {
+            lcd.putc(buf[0]);
+        } else {
+            lcd.cls();
+        }
     }
 }
 
@@ -105,12 +112,13 @@ void kb_key_check() {
 // main() runs in its own thread in the OS
 int main()
 {
+    pc.set_blocking(false);
     lcd_init();
     ThisThread::sleep_for(1s);
     while (true) {
-        //char buf[1];
-        //key_process(buf);
-        //lcd_key_process(buf);
+        char buf[1];
+        ser_key_process(buf);
+        lcd_display(buf);
         kb_key_check();
     }
 }
