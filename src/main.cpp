@@ -31,12 +31,15 @@ DigitalOut kb_cols[KB_COLS] = {col_5, col_6, col_7, col_8, col_9, col_10, col_11
 string kb_col_ids[KB_COLS] = {"5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"};
 
 bool kb_pressed[KB_ROWS][KB_COLS];
+
 static bool ser_key_read = false;
-static EventQueue event_queue(/* event count */ 10 * EVENTS_EVENT_SIZE);
 BufferedSerial pc(USBTX, USBRX);
-DigitalOut led_blue(LED1);
-DigitalOut led_green(LED2);
-DigitalOut led_red(LED3);
+
+DigitalOut led_blnk(PB_0);
+DigitalOut led_msgp(PB_15);
+DigitalOut led_ofln(PB_14);
+DigitalOut led_wait(PB_13);
+
 TextLCD lcd(PA_15, PC_10, PA_10, PC_6, PA_2, PA_3, TextLCD::LCD20x2);
 static const int DATA_BUFFER_LEN = 108;
 static char data[DATA_BUFFER_LEN];
@@ -48,8 +51,15 @@ void ser_print(string s) {
 void lcd_init() {
     lcd.setCursor(TextLCD::CurOff_BlkOff);  
     lcd.printf("Hello World!");
-    col_13.write(1);
 }
+
+void led_init() {
+    led_blnk.write(1);
+    led_msgp.write(1);
+    led_ofln.write(1);
+    led_wait.write(0);
+}
+
 
 void ser_key_process(char *buf) {
     string s;
@@ -73,39 +83,46 @@ void lcd_display(char *buf) {
     }
 }
 
+/**
+ * The loop function for keymatrix handling
+**/
 void kb_key_check() {
-    for (int c = 0; c < KB_COLS; c++) {
-        kb_cols[c].write(1);
-        for (int r = 0; r < KB_ROWS; r++) {
-            if (r == 2 && c == 5) {
-                kb_cols[6].write(1);
+    for (int c = 0; c < KB_COLS; c++) { //Iterate through columns
+        kb_cols[c].write(1); //Turn on this column
+        for (int r = 0; r < KB_ROWS; r++) { //Iterate through rows
+
+            //Logic to handle the fact that numpad 0 is actually two keys:
+            //By turning the second column on, we avoid catching the key in one column but not the other
+            if (r == 2 && c == 5) { //If this is the left side of the numpad 0
+                kb_cols[6].write(1); //Turn on the right side of the numpad 0
             }
-            if (r == 2 && c == 6) {
-                kb_cols[5].write(1);
+            if (r == 2 && c == 6) { //If this is the right side of the numpad 0
+                kb_cols[5].write(1); //Turn on the left side of the numpad 0
             }
 
-            if (kb_rows[r]) {
-                if (!kb_pressed[r][c]) {
+            if (kb_rows[r]) { //If this row is on
+                if (!kb_pressed[r][c]) { //If this key was not previously pressed
                     ser_print("C"+kb_col_ids[c]+"R"+kb_row_ids[r]+" Pressed\n");
                 }
                 
-                kb_pressed[r][c] = true;
-            } else {
-                if (kb_pressed[r][c]) {
+                kb_pressed[r][c] = true; //Flag this key as pressed
+            } else { //If this row is not on
+                if (kb_pressed[r][c]) { //If this key was previously pressed
                     ser_print("C"+kb_col_ids[c]+"R"+kb_row_ids[r]+" Released\n");
                 }
                 
-                kb_pressed[r][c] = false;
+                kb_pressed[r][c] = false; //Flag this key as not pressed
             }
 
-            if (r == 2 && c == 5) {
-                kb_cols[6].write(0);
+            //Logic to reset to normal state after special numpad 0 logic above
+            if (r == 2 && c == 5) { //If this is the left side of the numpad 0
+                kb_cols[6].write(0); //Turn off the right side of the numpad 0
             }
-            if (r == 2 && c == 6) {
-                kb_cols[5].write(0);
+            if (r == 2 && c == 6) { //If this is the right side of the numpad 0
+                kb_cols[5].write(0); //Turn off the left side of the numpad 0
             }
         }
-        kb_cols[c].write(0);
+        kb_cols[c].write(0); //Turn off this column
     }
 }
 
@@ -114,7 +131,9 @@ int main()
 {
     pc.set_blocking(false);
     lcd_init();
+    led_init();
     ThisThread::sleep_for(1s);
+    led_wait.write(1);
     while (true) {
         char buf[1];
         ser_key_process(buf);
