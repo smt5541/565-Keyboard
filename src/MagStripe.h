@@ -9,9 +9,9 @@
 //Red = Clock
 //Orange = Card Loaded
 
-#define MAGSTRIPE_DATA PC_5
-#define MAGSTRIPE_CLOCK PB_11
-#define MAGSTRIPE_LOAD PB_2
+#define MAGSTRIPE_DATA PB_11
+#define MAGSTRIPE_CLOCK PB_2
+#define MAGSTRIPE_LOAD PE_4
 
 enum ReadDirection { READ_UNKNOWN, READ_FORWARD, READ_BACKWARD };
 

@@ -1,8 +1,8 @@
 #include "mbed.h"
-#include "BLE.h"
 #include <TextLCD.h>
 #include <cstdio>
 #include <string>
+#include "MagStripe.h"
 
 #define KB_ROWS 6
 #define KB_COLS 11
@@ -43,6 +43,8 @@ DigitalOut leds[4] = {led_wait, led_ofln, led_msgp, led_blnk};
 bool led_state[4] = {1, 1, 1, 1};
 
 TextLCD lcd(PA_15, PC_10, PA_10, PC_6, PA_2, PA_3, TextLCD::LCD20x2);
+
+//MagStripe msr();
 static const int DATA_BUFFER_LEN = 108;
 static char data[DATA_BUFFER_LEN];
 
