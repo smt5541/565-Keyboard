@@ -44,7 +44,7 @@ bool led_state[4] = {1, 1, 1, 1};
 
 TextLCD lcd(PA_15, PC_10, PA_10, PC_6, PA_2, PA_3, TextLCD::LCD20x2);
 
-//MagStripe msr();
+MagStripe msr = MagStripe();
 static const int DATA_BUFFER_LEN = 108;
 static char data[DATA_BUFFER_LEN];
 
@@ -163,10 +163,30 @@ void kb_key_check() {
     }
 }
 
+void msr_read() {
+    if (!msr.available()) {
+        data[0] = '\0';
+        return;
+    }
+    set_led(3, true);
+
+    short chars = msr.read(data, DATA_BUFFER_LEN);
+
+    set_led(3, false);
+
+    if (chars < 0) {
+        ser_print("Error Reading Card");
+        return;
+    }
+
+    ser_print("Card Read Success!");
+}
+
 // main() runs in its own thread in the OS
 int main()
 {
     pc.set_blocking(false);
+    msr.begin(2);
     lcd_init();
     led_init();
     set_led(0, true);
@@ -177,6 +197,8 @@ int main()
         ser_key_process(buf);
         lcd_display(buf);
         kb_key_check();
+        //msr_read();
+        //pc.write(data, DATA_BUFFER_LEN);
     }
 }
 
