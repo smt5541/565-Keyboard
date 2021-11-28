@@ -175,11 +175,13 @@ void msr_read() {
     set_led(3, false);
 
     if (chars < 0) {
-        ser_print("Error Reading Card");
+        ser_print("Error Reading Card\n");
         return;
     }
 
-    ser_print("Card Read Success!");
+    ser_print("Card Read Success! ");
+    pc.write(data, DATA_BUFFER_LEN);
+    ser_print("\n");
 }
 
 // main() runs in its own thread in the OS
@@ -197,8 +199,7 @@ int main()
         ser_key_process(buf);
         lcd_display(buf);
         kb_key_check();
-        //msr_read();
-        //pc.write(data, DATA_BUFFER_LEN);
+        msr_read();
     }
 }
 
