@@ -180,7 +180,7 @@ void msr_read() {
     }
 
     ser_print("Card Read Success! ");
-    pc.write(data, DATA_BUFFER_LEN);
+    pc.write(data, chars);
     ser_print("\n");
 }
 
