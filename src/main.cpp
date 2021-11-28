@@ -35,10 +35,12 @@ bool kb_pressed[KB_ROWS][KB_COLS];
 static bool ser_key_read = false;
 BufferedSerial pc(USBTX, USBRX);
 
-DigitalOut led_blnk(PB_0);
-DigitalOut led_msgp(PB_15);
-DigitalOut led_ofln(PB_14);
 DigitalOut led_wait(PB_13);
+DigitalOut led_ofln(PB_14);
+DigitalOut led_msgp(PB_15);
+DigitalOut led_blnk(PB_0);
+DigitalOut leds[4] = {led_wait, led_ofln, led_msgp, led_blnk};
+bool led_state[4] = {1, 1, 1, 1};
 
 TextLCD lcd(PA_15, PC_10, PA_10, PC_6, PA_2, PA_3, TextLCD::LCD20x2);
 static const int DATA_BUFFER_LEN = 108;
@@ -54,16 +56,49 @@ void lcd_init() {
 }
 
 void led_init() {
-    led_blnk.write(1);
-    led_msgp.write(1);
+    led_wait.write(1);
     led_ofln.write(1);
-    led_wait.write(0);
+    led_msgp.write(1);
+    led_blnk.write(1);
+    
+}
+
+void set_led(int id, bool on) {
+    if (on) {
+        led_state[id] = 0;
+        leds[id].write(0);
+    } else {
+        led_state[id] = 1;
+        leds[id].write(1);
+    }
+}
+
+void toggle_led(int id) {
+    if (led_state[id] == 0)
+        led_state[id] = 1;
+    else
+        led_state[id] = 0;
+    leds[id].write(led_state[id]);
 }
 
 
 void ser_key_process(char *buf) {
     string s;
     if (pc.read(buf, 1) != -EAGAIN) {
+        switch (buf[0]) {
+            case '1':
+            toggle_led(0);
+            break;
+            case '2':
+            toggle_led(1);
+            break;
+            case '3':
+            toggle_led(2);
+            break;
+            case '4':
+            toggle_led(3);
+            break;
+        }
         s = to_string((int)buf[0]);
         s.append("\r\n");
         ser_print(s);
@@ -132,8 +167,9 @@ int main()
     pc.set_blocking(false);
     lcd_init();
     led_init();
+    set_led(0, true);
     ThisThread::sleep_for(1s);
-    led_wait.write(1);
+    set_led(0, false);
     while (true) {
         char buf[1];
         ser_key_process(buf);
