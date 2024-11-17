@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "565keyboard_web"
+version = "0.0.1"
+dependencies = [
+    "flask",
+    "flask-parameter-validation"
+]

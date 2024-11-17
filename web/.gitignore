@@ -1,0 +1,5 @@
+.venv/**
+dist/**
+565keyboard_web.egg-info/**
+.idea/**
+__pycache__/**
