@@ -23,6 +23,7 @@
 #include "soc/soc_caps.h"
 #include "cmd_wifi.h"
 #include "cmd_http.h"
+#include "cmd_util.h"
 
 /*
  * We warn if a secondary serial console is enabled. A secondary serial console is always output-only and
@@ -134,6 +135,7 @@ void app_main(void)
     register_wifi();
     register_http();
 #endif
+    register_utils();
 
     /* Prompt to be printed before each line.
      * This can be customized, made dynamic, etc.
