@@ -24,6 +24,7 @@
 #include "cmd_wifi.h"
 #include "cmd_http.h"
 #include "cmd_util.h"
+#include "lcd.h"
 
 /*
  * We warn if a secondary serial console is enabled. A secondary serial console is always output-only and
@@ -136,6 +137,14 @@ void app_main(void)
     register_http();
 #endif
     register_utils();
+    lcd_t twoByTwenty = {
+        .dimensions = {
+            .x = 20,
+            .y = 2
+        }
+    };
+    lcd_init(&twoByTwenty);
+    lcd_dump_buffer(&twoByTwenty);
 
     /* Prompt to be printed before each line.
      * This can be customized, made dynamic, etc.
