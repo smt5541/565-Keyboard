@@ -2,6 +2,7 @@ import logging
 import json
 import time
 
+from config import DEVICE_HOSTNAME, DEVICE_PORT, SERVER_PORT, SERVER_HOSTNAME
 from rpc import RPC
 from udp import UDPClient, UDPServer
 
@@ -9,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
-    client = UDPClient("192.168.0.221", 5541)
-    server = UDPServer("0.0.0.0", 5541)
+    client = UDPClient(DEVICE_HOSTNAME, DEVICE_PORT)
+    server = UDPServer(SERVER_HOSTNAME, SERVER_PORT)
     last_heartbeat_sent = 0
 
     def perform_state_acknowledge():

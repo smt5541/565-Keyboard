@@ -4,36 +4,49 @@
 #include <ArduinoJson.h>
 #include <ESP32Time.h>
 #include <NTPClient.h>
+#include <LiquidCrystal.h>
 
+// ESP32S3-DevKit-C1 Onboard RGBLED
 #define RGBLED_PIN 38
 #define NUM_RGBLEDS 1
+Adafruit_NeoPixel rgbleds(NUM_RGBLEDS, RGBLED_PIN, NEO_GRB + NEO_KHZ800);
+// WiFi Credentials
 #define WIFI_SSID "ShrimpsIsBugs"
 #define WIFI_PASS "5h1mp5camp1!"
+// Peripheral LEDs
 #define NUM_LEDS 4
 #define LED_WAIT 0
 #define LED_OFFLINE 1
 #define LED_MESSAGE_PENDING 2
 #define LED_UNLABELED 3
-#define DISPLAY_NUM_ROWS 2
-#define RPC_SEND_HOST "192.168.0.127"
-#define RPC_SEND_PORT 5541
-#define HEARTBEAT_DELAY_SEC 15
-
-Adafruit_NeoPixel rgbleds(NUM_RGBLEDS, RGBLED_PIN, NEO_GRB + NEO_KHZ800);
-WiFiUDP rpcUdp;
-WiFiUDP ntpUdp;
-NTPClient timeClient(ntpUdp);
-unsigned long lastHostHeartbeat = 0;
-ESP32Time RTC(-18000);
 const int unexposed_leds[] = {LED_OFFLINE};
 int led_state[NUM_LEDS];
-bool initialConnect = false;
-bool expectingState = false;
+// Character Display
+#define DISPLAY_NUM_ROWS 2
+#define DISPLAY_NUM_COLS 20
+#define LCD_RS 19
+#define LCD_EN 20
+#define LCD_DB4 21
+#define LCD_DB5 47
+#define LCD_DB6 48
+#define LCD_DB7 45
+LiquidCrystal lcd(LCD_RS, LCD_EN, LCD_DB4, LCD_DB5, LCD_DB6, LCD_DB7);
 const char *DEVICE_BOOTING = "Device Booting";
 const char *CONNECTIVITY_ERROR = "Connectivity Error";
 const char *WIFI_DISCONNECTED = "WiFi Disconnected";
 const char *PENDING_STATE_SYNC = "Pending State Sync";
 const char *HOST_OFFLINE = "Host Offline";
+// RPC Protocol Networking and Configuration
+#define RPC_SEND_HOST "192.168.0.127"
+#define RPC_SEND_PORT 5541
+#define HEARTBEAT_DELAY_SEC 15
+WiFiUDP rpcUdp;
+WiFiUDP ntpUdp;
+NTPClient timeClient(ntpUdp);
+unsigned long lastHostHeartbeat = 0;
+ESP32Time RTC(-18000);
+bool initialConnect = false;
+bool expectingState = false;
 const char *RPC_MSG_STATE_REQUEST = "{\"jsonrpc\": \"2.0\", \"method\": \"StateRequest\"}";
 
 void rgbled_off() {
@@ -175,7 +188,7 @@ void rpc_displayupdate(JsonDocument rpc) {
     i++;
   }
 
-  lcd_mock(rowsCstr);
+  display_write_lines(rowsCstr);
 }
 
 void process_rpc(JsonDocument rpc) {
@@ -202,29 +215,31 @@ void process_rpc(JsonDocument rpc) {
   }
 }
 
-void lcd_mock(const char *lines[]) {
+void display_write_lines(const char *lines[]) {
+  lcd.clear();
   for (int i = 0; i < DISPLAY_NUM_ROWS; i++) {
-    Serial.printf("lcd_mock: Line %d: %s\n", i, lines[i]);
+    lcd.setCursor(0, i);
+    lcd.print(lines[i]);
+    Serial.printf("display_write_lines: Line %d: %s\n", i, lines[i]);
   }
 }
 
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(9600);
+  Serial.begin(115200);
   rgbled_off();
   wifi_init();
   udp_init();
   timeClient.begin();
+  lcd.begin(DISPLAY_NUM_COLS, DISPLAY_NUM_ROWS);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
   if (WiFi.status() != WL_CONNECTED) {
     led_set(LED_OFFLINE, true);
-    lcd_mock(new const char*[]{initialConnect ? CONNECTIVITY_ERROR : DEVICE_BOOTING, WIFI_DISCONNECTED});
+    display_write_lines(new const char*[]{initialConnect ? CONNECTIVITY_ERROR : DEVICE_BOOTING, WIFI_DISCONNECTED});
     Serial.println("WiFi Disconnected, attempting to reconnect...");
     wifi_connect();
-    lcd_mock(new const char*[]{initialConnect ? CONNECTIVITY_ERROR : DEVICE_BOOTING, PENDING_STATE_SYNC});
+    display_write_lines(new const char*[]{initialConnect ? CONNECTIVITY_ERROR : DEVICE_BOOTING, PENDING_STATE_SYNC});
     timeClient.update();
     RTC.setTime(timeClient.getEpochTime());
     Serial.println(RTC.getTime("%A, %B %d %Y %H:%M:%S"));
@@ -234,7 +249,7 @@ void loop() {
   }
   if (!expectingState && (RTC.getEpoch() - lastHostHeartbeat) > HEARTBEAT_DELAY_SEC) {
     led_set(LED_OFFLINE, true);
-    lcd_mock(new const char*[]{CONNECTIVITY_ERROR, HOST_OFFLINE});
+    display_write_lines(new const char*[]{CONNECTIVITY_ERROR, HOST_OFFLINE});
     expectingState = true;
   }
   if (expectingState) {
