@@ -20,6 +20,12 @@ Adafruit_NeoPixel rgbleds(NUM_RGBLEDS, RGBLED_PIN, NEO_GRB + NEO_KHZ800);
 #define LED_MESSAGE_PENDING 2
 #define LED_UNLABELED 3
 const int unexposed_leds[] = {LED_OFFLINE};
+const int LED_PINS[NUM_LEDS] = { // LEDs are Common Anode on 3.3v bus - LOW to turn on, HIGH to turn off 
+  4, // Yellow Wire from LED Board - Wait
+  5, // Orange Wire from LED Board - Offline
+  6, // Red Wire from LED Board - Message Pending
+  7  // Brown Wire from LED Board - Unlabeled
+};
 int led_state[NUM_LEDS];
 // Character Display
 #define DISPLAY_NUM_ROWS 2
@@ -56,28 +62,15 @@ void rgbled_off() {
   rgbleds.show();
 }
 
-void led_dbg() {
-  Serial.println("led_dbg: LED State:");
-  Serial.printf("led_dbg: Wait: %d\n", led_state[LED_WAIT]);
-  Serial.printf("led_dbg: Offline: %d\n", led_state[LED_OFFLINE]);
-  Serial.printf("led_dbg: Message Pending: %d\n", led_state[LED_MESSAGE_PENDING]);
-  Serial.printf("led_dbg: Unlabeled: %d\n", led_state[LED_UNLABELED]);
-}
-
 void led_init() {
   for (int i = 0; i < NUM_LEDS; i++) {
-    led_state[i] = 0;
+    pinMode(LED_PINS[i], OUTPUT);
+    digitalWrite(LED_PINS[i], HIGH);
   }
-  led_dbg();
 }
 
 void led_set(int led, bool on) {
-  if (led == LED_OFFLINE) {
-    rgbleds.setPixelColor(0, on ? rgbleds.Color(50, 50, 0) : rgbleds.Color(0, 0, 0));
-    rgbleds.show();
-  }
-  led_state[led] = (int) on;
-  led_dbg();
+  digitalWrite(LED_PINS[led], on ? LOW : HIGH);
 }
 
 void wifi_init() {
@@ -159,7 +152,7 @@ void rpc_ledupdate(JsonDocument rpc) {
   for (JsonVariant v : leds) {
     for (int unexposed_led : unexposed_leds) {
       if (i == unexposed_led) {
-        Serial.printf("rpc_ledupdate: LED %d Unchanged (Unexposed) at %d\n", i, led_state[i]);
+        Serial.printf("rpc_ledupdate: LED %d Unchanged (Unexposed) at %d\n", i, digitalRead(LED_PINS[i]));
         i++;
         break;
       }
@@ -169,10 +162,9 @@ void rpc_ledupdate(JsonDocument rpc) {
     }
     int led = v.as<int>();
     Serial.printf("rpc_ledupdate: LED %d: %d\n", i, led);  // Print each LED value (0, 1, etc.)
-    led_state[i] = led;
+    led_set(i, led > 0 ? true : false);
     i++;
   }
-  led_dbg();
 }
 
 void rpc_displayupdate(JsonDocument rpc) {
@@ -226,6 +218,7 @@ void display_write_lines(const char *lines[]) {
 
 void setup() {
   Serial.begin(115200);
+  led_init();
   rgbled_off();
   wifi_init();
   udp_init();

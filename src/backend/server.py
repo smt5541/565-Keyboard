@@ -18,11 +18,12 @@ def main():
         """Provide the Device with the current System State"""
         client.send(RPC.state_acknowledge())
         client.send(RPC.display_update(["Testing", "Display Update"]))
+        client.send(RPC.led_update([1,1,1,1]))
 
     # Listen for incoming messages
     while True:
         # If heartbeat hasn't been sent in a bit, send one
-        if int(time.time()) - last_heartbeat_sent >= 15:
+        if int(time.time()) - last_heartbeat_sent >= 10:
             client.send(RPC.host_heartbeat())
             last_heartbeat_sent = int(time.time())
         # If there's data, read it
