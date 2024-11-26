@@ -18,7 +18,7 @@ def main():
         """Provide the Device with the current System State"""
         client.send(RPC.state_acknowledge())
         client.send(RPC.display_update(["Testing", "Display Update"]))
-        client.send(RPC.led_update([1,1,1,1]))
+        client.send(RPC.led_update([0,0,0]))
 
     # Listen for incoming messages
     while True:
@@ -32,6 +32,12 @@ def main():
             msg = json.loads(data.decode())
             if msg["method"] == "StateRequest":
                 perform_state_acknowledge()
+            if msg["method"] == "CardSwipe":
+                if msg["params"]["success"]:
+                    if msg["params"]["data"] == ";11026222405040=1802=0000000000000004?8":
+                        client.send(RPC.display_update(["Welcome User", "Seth"]))
+                    elif msg["params"]["data"] == ";11026222404030=1802=0000000000000004?>":
+                        client.send(RPC.display_update(["Welcome User", "Ada"]))
 
 if __name__ == "__main__":
     main()

@@ -5,6 +5,7 @@
 #include <ESP32Time.h>
 #include <NTPClient.h>
 #include <LiquidCrystal.h>
+#include <MagStripe_ESP32.h>
 
 // ESP32S3-DevKit-C1 Onboard RGBLED
 #define RGBLED_PIN 38
@@ -21,10 +22,10 @@ Adafruit_NeoPixel rgbleds(NUM_RGBLEDS, RGBLED_PIN, NEO_GRB + NEO_KHZ800);
 #define LED_UNLABELED 3
 const int unexposed_leds[] = {LED_OFFLINE};
 const int LED_PINS[NUM_LEDS] = { // LEDs are Common Anode on 3.3v bus - LOW to turn on, HIGH to turn off 
-  4, // Yellow Wire from LED Board - Wait
-  5, // Orange Wire from LED Board - Offline
-  6, // Red Wire from LED Board - Message Pending
-  7  // Brown Wire from LED Board - Unlabeled
+  15, // Yellow Wire from LED Board - Wait
+  16, // Orange Wire from LED Board - Offline
+  17, // Red Wire from LED Board - Message Pending
+  18  // Brown Wire from LED Board - Unlabeled
 };
 int led_state[NUM_LEDS];
 // Character Display
@@ -42,6 +43,13 @@ const char *CONNECTIVITY_ERROR = "Connectivity Error";
 const char *WIFI_DISCONNECTED = "WiFi Disconnected";
 const char *PENDING_STATE_SYNC = "Pending State Sync";
 const char *HOST_OFFLINE = "Host Offline";
+// MagStripe Reader
+#define MSR_DATA 2 // Brown
+#define MSR_CLK 3  // Red
+#define MSR_LD 4   // Orange
+MagStripe msr;
+#define MSR_BUFFER_LEN 108
+static char msr_buffer[MSR_BUFFER_LEN];
 // RPC Protocol Networking and Configuration
 #define RPC_SEND_HOST "192.168.0.127"
 #define RPC_SEND_PORT 5541
@@ -54,6 +62,7 @@ ESP32Time RTC(-18000);
 bool initialConnect = false;
 bool expectingState = false;
 const char *RPC_MSG_STATE_REQUEST = "{\"jsonrpc\": \"2.0\", \"method\": \"StateRequest\"}";
+const char *RPC_MSG_CARD_SWIPE_TEMPLATE = "{\"jsonrpc\": \"2.0\", \"method\": \"CardSwipe\", \"params\": {\"success\": %d, \"data\": \"%s\"}}";
 
 void rgbled_off() {
   rgbleds.begin();
@@ -216,6 +225,13 @@ void display_write_lines(const char *lines[]) {
   }
 }
 
+void msr_init() {
+  pinMode(MSR_DATA, INPUT);
+  pinMode(MSR_CLK, INPUT);
+  pinMode(MSR_LD, INPUT);
+  msr.begin(MSR_CLK);
+}
+
 void setup() {
   Serial.begin(115200);
   led_init();
@@ -224,13 +240,14 @@ void setup() {
   udp_init();
   timeClient.begin();
   lcd.begin(DISPLAY_NUM_COLS, DISPLAY_NUM_ROWS);
+  msr_init();
 }
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
     led_set(LED_OFFLINE, true);
     display_write_lines(new const char*[]{initialConnect ? CONNECTIVITY_ERROR : DEVICE_BOOTING, WIFI_DISCONNECTED});
-    Serial.println("WiFi Disconnected, attempting to reconnect...");
+    Serial.println("loop: WiFi Disconnected, attempting to reconnect...");
     wifi_connect();
     display_write_lines(new const char*[]{initialConnect ? CONNECTIVITY_ERROR : DEVICE_BOOTING, PENDING_STATE_SYNC});
     timeClient.update();
@@ -259,5 +276,27 @@ void loop() {
       process_rpc(rpc);
     }
     free(data);
+  }
+  if (!msr.available()) {
+    msr_buffer[0] = '\0';
+  } else {
+    Serial.println("MSR Available");
+    led_set(LED_UNLABELED, true);
+    short chars = msr.read(msr_buffer, MSR_BUFFER_LEN);
+    led_set(LED_UNLABELED, false);
+
+    if (chars < 0) {
+      Serial.println("loop: Error reading MagStripe Card");
+      int resultBufferLen = strlen(RPC_MSG_CARD_SWIPE_TEMPLATE);
+      char resultBuffer[resultBufferLen] = {0};
+      sprintf(resultBuffer, RPC_MSG_CARD_SWIPE_TEMPLATE, 0, "");
+      udp_send(RPC_SEND_HOST, RPC_SEND_PORT, resultBuffer);
+    } else {
+      Serial.printf("loop: Read Card: %s\n", msr_buffer);
+      int resultBufferLen = strlen(RPC_MSG_CARD_SWIPE_TEMPLATE) + MSR_BUFFER_LEN;
+      char resultBuffer[resultBufferLen] = {0};
+      sprintf(resultBuffer, RPC_MSG_CARD_SWIPE_TEMPLATE, 1, msr_buffer);
+      udp_send(RPC_SEND_HOST, RPC_SEND_PORT, resultBuffer);
+    }
   }
 }
