@@ -38,6 +38,10 @@ def main():
                         client.send(RPC.display_update(["Welcome User", "Seth"]))
                     elif msg["params"]["data"] == ";11026222404030=1802=0000000000000004?>":
                         client.send(RPC.display_update(["Welcome User", "Ada"]))
+                    else:
+                        client.send(RPC.display_update(["Unknown Card", ""]))
+                else:
+                    client.send(RPC.display_update(["Card Read Failed", ""]))
 
 if __name__ == "__main__":
     main()
